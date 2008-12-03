@@ -6,8 +6,8 @@
  * http://www.wyatt100.freeserve.co.uk/download.htm
  */
 
-#include <gl/glpng.h>
-#include <gl/glut.h>
+#include <GL/glpng.h>
+#include <GL/glut.h>
 #include <stdlib.h>
 
 int angle = 0;

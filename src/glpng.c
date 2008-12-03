@@ -29,7 +29,7 @@
 #include <GL/gl.h>
 #include <stdlib.h>
 #include <math.h>
-#include "png/png.h"
+#include <png.h>
 
 /* Used to decide if GL/gl.h supports the paletted extension */
 #ifdef GL_COLOR_INDEX1_EXT
@@ -113,6 +113,7 @@ static void Resize(int components, const png_bytep d1, int w1, int h1, png_bytep
 	}
 }
 
+#ifdef _WIN32
 static int ExtSupported(const char *x) {
 	static const GLubyte *ext = NULL;
 	const char *c;
@@ -129,6 +130,7 @@ static int ExtSupported(const char *x) {
 
 	return 0;
 }
+#endif
 
 #define GET(o) ((int)*(data + (o)))
 
