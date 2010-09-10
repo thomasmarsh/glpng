@@ -31,6 +31,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <png.h>
 
@@ -262,9 +263,9 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 	png_structp png;
 	png_infop   info;
 	png_infop   endinfo;
-	png_bytep   data;
-   png_bytep  *row_p;
-   double	fileGamma;
+	png_bytep   data = NULL;
+	png_bytep  *row_p = NULL;
+	double      fileGamma;
 
 	png_uint_32 width, height;
 	int depth, color;
@@ -277,13 +278,19 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 	if (!png_check_sig(header, 8)) return 0;
 
 	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png) return 0;
 	info = png_create_info_struct(png);
+	if (!info) return 0;
 	endinfo = png_create_info_struct(png);
+	if (!endinfo) return 0;
 
 	// DH: added following lines
 	if (setjmp(png_jmpbuf(png)))
 	{
+error:
 		png_destroy_read_struct(&png, &info, &endinfo);
+		free(data);
+		free(row_p);
 		return 0;
 	}
 	// ~DH
@@ -306,8 +313,16 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 
 	png_read_update_info(png, info);
 
+	/* HDG: We allocate all the png data in one linear array, thus
+	   height * png_get_rowbytes() may not be > PNG_UINT_32_MAX !
+	   This check fixes CVE-2010-1519. */
+	if ((uint64_t)height * png_get_rowbytes(png, info) > PNG_UINT_32_MAX)
+		goto error;
+
 	data = (png_bytep) malloc(png_get_rowbytes(png, info)*height);
 	row_p = (png_bytep *) malloc(sizeof(png_bytep)*height);
+	if (!data || !row_p)
+		goto error;
 
 	for (i = 0; i < height; i++) {
 		if (StandardOrientation)
@@ -318,6 +333,7 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 
 	png_read_image(png, row_p);
 	free(row_p);
+	row_p = NULL;
 
 	if (color == PNG_COLOR_TYPE_PALETTE) {
 		int cols;
@@ -368,9 +384,10 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 	png_structp png;
 	png_infop   info;
 	png_infop   endinfo;
-	png_bytep   data, data2;
-   png_bytep  *row_p;
-   double	fileGamma;
+	png_bytep   data = NULL;
+	png_bytep   data2 = NULL;
+	png_bytep  *row_p = NULL;
+	double      fileGamma;
 
 	png_uint_32 width, height, rw, rh;
 	int depth, color;
@@ -381,13 +398,20 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 	if (!png_check_sig(header, 8)) return 0;
 
 	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png) return 0;
 	info = png_create_info_struct(png);
+	if (!info) return 0;
 	endinfo = png_create_info_struct(png);
+	if (!endinfo) return 0;
 
 	// DH: added following lines
 	if (setjmp(png_jmpbuf(png)))
 	{
+error:
 		png_destroy_read_struct(&png, &info, &endinfo);
+		free(data);
+		free(data2);
+		free(row_p);
 		return 0;
 	}
 	// ~DH
@@ -445,8 +469,16 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 
 	png_read_update_info(png, info);
 
+	/* HDG: We allocate all the png data in one linear array, thus
+	   height * png_get_rowbytes() may not be > PNG_UINT_32_MAX !
+	   This check fixes CVE-2010-1519. */
+	if ((uint64_t)height * png_get_rowbytes(png, info) > PNG_UINT_32_MAX)
+		goto error;
+
 	data = (png_bytep) malloc(png_get_rowbytes(png, info)*height);
 	row_p = (png_bytep *) malloc(sizeof(png_bytep)*height);
+	if (!data || !row_p)
+		goto error;
 
 	for (i = 0; i < height; i++) {
 		if (StandardOrientation)
@@ -457,6 +489,7 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 
 	png_read_image(png, row_p);
 	free(row_p);
+	row_p = NULL;
 
 	rw = SafeSize(width), rh = SafeSize(height);
 
@@ -464,6 +497,8 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 		const int channels = png_get_rowbytes(png, info)/width;
 
 		data2 = (png_bytep) malloc(rw*rh*channels);
+		if (!data2)
+			goto error;
 
  		/* Doesn't work on certain sizes */
 /* 		if (gluScaleImage(glformat, width, height, GL_UNSIGNED_BYTE, data, rw, rh, GL_UNSIGNED_BYTE, data2) != 0)
@@ -474,6 +509,7 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 		width = rw, height = rh;
 		free(data);
 		data = data2;
+		data2 = NULL;
 	}
 
 	{ /* OpenGL stuff */
@@ -542,6 +578,12 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 		else {
 			png_bytep p, endp, q;
 			int r, g, b, a;
+
+			/* HDG another potential 32 bit address overflow, the
+			   original png had 3 channels and we are going to
+			   4 channels now! */
+			if ((uint64_t)width * height > (PNG_UINT_32_MAX >> 2))
+				goto error;
 
 			p = data, endp = p+width*height*3;
 			q = data2 = (png_bytep) malloc(sizeof(png_byte)*width*height*4);
