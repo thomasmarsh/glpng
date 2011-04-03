@@ -564,7 +564,7 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 			#define ALPHA *q
 
 			switch (trans) {
-				case PNG_CALLBACK:
+				case PNG_CALLBACKT:
 					FORSTART
 						ALPHA = AlphaCallback((unsigned char) r, (unsigned char) g, (unsigned char) b);
 					FOREND
