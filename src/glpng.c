@@ -25,8 +25,11 @@
 	#include <windows.h>
 #endif
 
+#define GL_GLEXT_PROTOTYPES
+
 #include <GL/glpng.h>
 #include <GL/gl.h>
+#include <GL/glext.h>
 #include <stdlib.h>
 #include <math.h>
 #include <png.h>
