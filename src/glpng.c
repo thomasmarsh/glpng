@@ -118,6 +118,7 @@ static void Resize(int components, const png_bytep d1, int w1, int h1, png_bytep
 	}
 }
 
+#ifdef SUPPORTS_PALETTE_EXT
 #ifdef _WIN32
 static int ExtSupported(const char *x) {
 	static const GLubyte *ext = NULL;
@@ -135,6 +136,7 @@ static int ExtSupported(const char *x) {
 
 	return 0;
 }
+#endif
 #endif
 
 #define GET(o) ((int)*(data + (o)))
@@ -274,7 +276,7 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 
 	if (pinfo == NULL) return 0;
 
-	fread(header, 1, 8, fp);
+	if (fread(header, 1, 8, fp) != 8) return 0;
 	if (!png_check_sig(header, 8)) return 0;
 
 	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
@@ -675,7 +677,7 @@ int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
 
 	int ret = 0;
 
-	fread(header, 1, 8, fp);
+	if (fread(header, 1, 8, fp) != 8) return 0;
 	if (!png_check_sig(header, 8)) return 0;
 
 	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
