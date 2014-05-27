@@ -503,7 +503,7 @@ static int pngLoadCommon(int mipmap, int trans, pngInfo *pinfo, png_structp png,
 		}
 		else
 		#endif
-		if (trans == PNG_SOLID || trans == PNG_ALPHA || color == PNG_COLOR_TYPE_RGB_ALPHA || color == PNG_COLOR_TYPE_GRAY_ALPHA) {
+		if (trans == PNG_SOLID || trans == PNG_ALPHA || trans == PNG_LUMINANCEALPHA || color == PNG_COLOR_TYPE_RGB_ALPHA || color == PNG_COLOR_TYPE_GRAY_ALPHA) {
 			GLenum glformat;
 			GLint glcomponent;
 
@@ -527,6 +527,9 @@ static int pngLoadCommon(int mipmap, int trans, pngInfo *pinfo, png_structp png,
 					/*puts("glformat not set");*/
 					goto finish;
 			}
+
+			if (trans == PNG_LUMINANCEALPHA)
+				glformat = GL_LUMINANCE_ALPHA;
 
 			if (mipmap == PNG_BUILDMIPMAPS)
 				Build2DMipmaps(glcomponent, width, height, glformat, data, 1);
