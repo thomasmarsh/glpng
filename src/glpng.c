@@ -32,6 +32,7 @@
 #include <GL/glext.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 #include <png.h>
 
@@ -263,14 +264,13 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 	png_structp png;
 	png_infop   info;
 	png_infop   endinfo;
-	png_bytep   data = NULL;
-	png_bytep  *row_p = NULL;
 	double      fileGamma;
 
-	png_uint_32 width, height;
+	png_uint_32 width, height, i;
 	int depth, color;
 
-	png_uint_32 i;
+	png_bytep data = NULL;
+	png_bytep *row_p = NULL;
 
 	if (pinfo == NULL) return 0;
 
@@ -284,16 +284,8 @@ int APIENTRY pngLoadRawF(FILE *fp, pngRawInfo *pinfo) {
 	endinfo = png_create_info_struct(png);
 	if (!endinfo) return 0;
 
-	// DH: added following lines
 	if (setjmp(png_jmpbuf(png)))
-	{
-error:
-		png_destroy_read_struct(&png, &info, &endinfo);
-		free(data);
-		free(row_p);
-		return 0;
-	}
-	// ~DH
+		goto error;
 
 	png_init_io(png, fp);
 	png_set_sig_bytes(png, 8);
@@ -360,63 +352,29 @@ error:
 
 	pinfo->Data = data;
 
-   png_read_end(png, endinfo);
+	png_read_end(png, endinfo);
 	png_destroy_read_struct(&png, &info, &endinfo);
-
 	return 1;
+
+error:
+	png_destroy_read_struct(&png, &info, &endinfo);
+	free(data);
+	free(row_p);
+	return 0;
 }
 
-int APIENTRY pngLoad(const char *filename, int mipmap, int trans, pngInfo *pinfo) {
-	int result;
-	FILE *fp = fopen(filename, "rb");
-	if (fp == NULL) return 0;
-
-	result = pngLoadF(fp, mipmap, trans, pinfo);
-
-	if (fclose(fp) != 0) return 0;
-
-	return result;
-}
-
-int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
+static int pngLoadCommon(int mipmap, int trans, pngInfo *pinfo, png_structp png, png_infop info, png_infop endinfo) {
 	GLint pack, unpack;
-	unsigned char header[8];
-	png_structp png;
-	png_infop   info;
-	png_infop   endinfo;
-	png_bytep   data = NULL;
-	png_bytep   data2 = NULL;
-	png_bytep  *row_p = NULL;
-	double      fileGamma;
+	double fileGamma;
 
-	png_uint_32 width, height, rw, rh;
+	png_uint_32 width, height, rw, rh, i;
 	int depth, color;
 
-	png_uint_32 i;
+	png_bytep data = NULL, data2 = NULL;
+	png_bytep *row_p = NULL;
 
-	fread(header, 1, 8, fp);
-	if (!png_check_sig(header, 8)) return 0;
+	int ret = 0;
 
-	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-	if (!png) return 0;
-	info = png_create_info_struct(png);
-	if (!info) return 0;
-	endinfo = png_create_info_struct(png);
-	if (!endinfo) return 0;
-
-	// DH: added following lines
-	if (setjmp(png_jmpbuf(png)))
-	{
-error:
-		png_destroy_read_struct(&png, &info, &endinfo);
-		free(data);
-		free(data2);
-		free(row_p);
-		return 0;
-	}
-	// ~DH
-
-	png_init_io(png, fp);
 	png_set_sig_bytes(png, 8);
 	png_read_info(png, info);
 	png_get_IHDR(png, info, &width, &height, &depth, &color, NULL, NULL, NULL);
@@ -473,12 +431,12 @@ error:
 	   height * png_get_rowbytes() may not be > PNG_UINT_32_MAX !
 	   This check fixes CVE-2010-1519. */
 	if ((uint64_t)height * png_get_rowbytes(png, info) > PNG_UINT_32_MAX)
-		goto error;
+		goto finish;
 
 	data = (png_bytep) malloc(png_get_rowbytes(png, info)*height);
 	row_p = (png_bytep *) malloc(sizeof(png_bytep)*height);
 	if (!data || !row_p)
-		goto error;
+		goto finish;
 
 	for (i = 0; i < height; i++) {
 		if (StandardOrientation)
@@ -498,11 +456,11 @@ error:
 
 		data2 = (png_bytep) malloc(rw*rh*channels);
 		if (!data2)
-			goto error;
+			goto finish;
 
  		/* Doesn't work on certain sizes */
 /* 		if (gluScaleImage(glformat, width, height, GL_UNSIGNED_BYTE, data, rw, rh, GL_UNSIGNED_BYTE, data2) != 0)
- 			return 0;
+			goto finish;
 */
 		Resize(channels, data, width, height, data2, rw, rh);
 
@@ -536,7 +494,7 @@ error:
 				case 1<<16: intf = GL_COLOR_INDEX16_EXT; break;
 				default:
 					/*printf("Warning: Colour depth %i not recognised\n", cols);*/
-					return 0;
+					goto finish;
 			}
 			glColorTableEXT(GL_TEXTURE_2D, GL_RGB8, cols, GL_RGB, GL_UNSIGNED_BYTE, pal);
 			glTexImage2D(GL_TEXTURE_2D, mipmap, intf, width, height, 0, GL_COLOR_INDEX, GL_UNSIGNED_BYTE, data);
@@ -565,7 +523,7 @@ error:
 
 				default:
 					/*puts("glformat not set");*/
-					return 0;
+					goto finish;
 			}
 
 			if (mipmap == PNG_BUILDMIPMAPS)
@@ -583,7 +541,7 @@ error:
 			   original png had 3 channels and we are going to
 			   4 channels now! */
 			if ((uint64_t)width * height > (PNG_UINT_32_MAX >> 2))
-				goto error;
+				goto finish;
 
 			p = data, endp = p+width*height*3;
 			q = data2 = (png_bytep) malloc(sizeof(png_byte)*width*height*4);
@@ -681,19 +639,103 @@ error:
 			else
 				glTexImage2D(GL_TEXTURE_2D, mipmap, 4, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data2);
 
-			free(data2);
 		}
 
 		glPixelStorei(GL_PACK_ALIGNMENT, pack);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, unpack);
 	} /* OpenGL end */
 
-   png_read_end(png, endinfo);
-	png_destroy_read_struct(&png, &info, &endinfo);
+	png_read_end(png, endinfo);
+	ret = 1;
 
+finish:
 	free(data);
+	free(data2);
+	free(row_p);
+	return ret;
+}
 
-	return 1;
+int APIENTRY pngLoad(const char *filename, int mipmap, int trans, pngInfo *pinfo) {
+	int result;
+	FILE *fp = fopen(filename, "rb");
+	if (fp == NULL) return 0;
+
+	result = pngLoadF(fp, mipmap, trans, pinfo);
+
+	if (fclose(fp) != 0) return 0;
+
+	return result;
+}
+
+int APIENTRY pngLoadF(FILE *fp, int mipmap, int trans, pngInfo *pinfo) {
+	unsigned char header[8];
+	png_structp png;
+	png_infop info;
+	png_infop endinfo;
+
+	int ret = 0;
+
+	fread(header, 1, 8, fp);
+	if (!png_check_sig(header, 8)) return 0;
+
+	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png) return 0;
+	info = png_create_info_struct(png);
+	if (!info) return 0;
+	endinfo = png_create_info_struct(png);
+	if (!endinfo) return 0;
+
+	if (!setjmp(png_jmpbuf(png))) {
+		png_init_io(png, fp);
+		ret = pngLoadCommon(mipmap, trans, pinfo, png, info, endinfo);
+	}
+
+	png_destroy_read_struct(&png, &info, &endinfo);
+	return ret;
+}
+
+typedef struct glpng_memread_struct {
+	png_bytep mem;
+	png_size_t rpos;
+} glpng_memread;
+
+static void glpng_read_mem(png_structp png, png_bytep dst, png_size_t size) {
+	glpng_memread *mr = (glpng_memread*) png_get_io_ptr(png);
+	memcpy(dst, mr->mem + mr->rpos, size);
+	mr->rpos += size;
+}
+
+int APIENTRY pngLoadMem(const char *mem, int size, int mipmap, int trans, pngInfo *pinfo) {
+	unsigned char header[8];
+	png_structp png;
+	png_infop info;
+	png_infop endinfo;
+	glpng_memread memread;
+
+	int ret = 0;
+
+	if (size < 8)
+		return 0; // error
+
+	memcpy(header, mem, 8);
+	if (!png_check_sig(header, 8)) return 0;
+
+	png = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	if (!png) return 0;
+	info = png_create_info_struct(png);
+	if (!info) return 0;
+	endinfo = png_create_info_struct(png);
+	if (!endinfo) return 0;
+
+	if (!setjmp(png_jmpbuf(png))) {
+		memread.rpos = 0;
+		memread.mem = ((png_bytep) mem) + 8;
+		png_set_read_fn(png, &memread, glpng_read_mem);
+		ret = pngLoadCommon(mipmap, trans, pinfo, png, info, endinfo);
+	}
+
+	png_destroy_read_struct(&png, &info, &endinfo);
+	return ret;
 }
 
 static unsigned int SetParams(int wrapst, int magfilter, int minfilter) {
@@ -723,6 +765,14 @@ unsigned int APIENTRY pngBindF(FILE *file, int mipmap, int trans, pngInfo *info,
 	unsigned int id = SetParams(wrapst, magfilter, minfilter);
 
 	if (id != 0 && pngLoadF(file, mipmap, trans, info))
+		return id;
+	return 0;
+}
+
+unsigned int APIENTRY pngBindMem(const char *mem, int size, int mipmap, int trans, pngInfo *info, int wrapst, int minfilter, int magfilter) {
+	unsigned int id = SetParams(wrapst, magfilter, minfilter);
+
+	if (id != 0 && pngLoadMem(mem, size, mipmap, trans, info))
 		return id;
 	return 0;
 }
