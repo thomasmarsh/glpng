@@ -4,12 +4,12 @@ SHAREDLIBFLAGS=-shared
 DESTDIR=/usr/local
 DOCDIR=$(DESTDIR)/share/doc/libglpng
 
-all: libglpng.a libglpng.so.1.45
+all: libglpng.a libglpng.so.1.46
 
 libglpng.a: glpng.o
 	ar rv $@ $<
 
-libglpng.so.1.45: glpng.o
+libglpng.so.1.46: glpng.o
 	gcc $(CFLAGS) $(SHAREDLIBFLAGS) -Wl,-soname=libglpng.so.1 -Wl,--whole-archive $< -Wl,--no-whole-archive $(LDFLAGS) -o $@
 
 glpng.o: src/glpng.c
@@ -18,7 +18,7 @@ glpng.o: src/glpng.c
 clean:
 	rm glpng.o libglpng.*
 
-install: libglpng.a libglpng.so.1.45
+install: libglpng.a libglpng.so.1.46
 	for i in include include/GL lib; do \
 		install -m 755 -d $(DESTDIR)/$$i; \
 	done
@@ -29,7 +29,7 @@ install: libglpng.a libglpng.so.1.45
 	install -m 644 Example/Stunt.png Example/Test.c $(DOCDIR)/examples
 	install -m 644 include/GL/glpng.h $(DESTDIR)/include/GL
 	install -m 644 libglpng.* $(DESTDIR)/lib
-	ln -s libglpng.so.1.45 $(DESTDIR)/lib/libglpng.so.1
-	ln -s libglpng.so.1.45 $(DESTDIR)/lib/libglpng.so
+	ln -s libglpng.so.1.46 $(DESTDIR)/lib/libglpng.so.1
+	ln -s libglpng.so.1.46 $(DESTDIR)/lib/libglpng.so
 
 .PHONY: clean install

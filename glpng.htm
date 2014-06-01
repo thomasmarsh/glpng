@@ -6,8 +6,8 @@
 <title>glpng</title>
 </head>
 <body bgcolor="#FFFFFF">
-<h2 align="center">PNG loader library for OpenGL v1.45
-(10/7/2000)</h2>
+<h2 align="center">PNG loader library for OpenGL v1.46
+(2/6/2014)</h2>
 <p align="center">Ben Wyatt <a href=
 "mailto:ben@wyatt100.freeserve.co.uk">ben@wyatt100.freeserve.co.uk</a></p>
 <h3>Introduction</h3>
@@ -57,8 +57,10 @@ link with glpng.lib or glpngd.lib.</p>
 <ul>
 <li><a href="#pngLoad">pngLoad</a></li>
 <li><a href="#pngLoadF">pngLoadF</a></li>
+<li><a href="#pngLoadMem">pngLoadMem</a></li>
 <li><a href="#pngBind">pngBind</a></li>
 <li><a href="#pngBindF">pngBindF</a></li>
+<li><a href="#pngBindMem">pngBindMem</a></li>
 <li><a href="#pngLoadRaw">pngLoadRaw</a></li>
 <li><a href="#pngLoadRawF">pngLoadRawF</a></li>
 <li><a href="#SetStencil">pngSetStencil</a></li>
@@ -117,6 +119,7 @@ sqrt(r<sup>2</sup>+g<sup>2</sup>+b<sup>2</sup>)</li>
 <li><a name="PNG_CALLBACK">PNG_CALLBACK</a> to use the callback
 function defined by <a href=
 "#pngSetAlphaCallback">pngSetAlphaCallback</a>.</li>
+<li>PNG_LUMINANCE_ALPHA</li>
 </ul>
 </td>
 </tr>
@@ -161,9 +164,27 @@ file.</p>
 </blockquote>
 <pre>
 <a name=
+"pngLoadMem"><strong>success = pngLoadMem(mem, size, mipmap, trans, info)</strong></a>
+</pre>
+<blockquote>
+<table border="1">
+<tr>
+<td valign="top">mem</td>
+<td>Pointer to a buffer</td>
+</tr>
+<tr>
+<td valign="top">size</td>
+<td>Size of the buffer</td>
+</tr>
+</table>
+<p>This is used to load a PNG from a memory buffer.</p>
+</blockquote>
+<pre>
+<a name=
 "pngBind"><strong>id = pngBind(filename, mipmap, trans, info, wrapst, minfilter, magfilter)</strong></a><strong>
 </strong><a name=
 "pngBindF"><strong>id = pngBindF(file, mipmap, trans, info, wrapst, minfilter, magfilter)</strong></a>
+<a name="pngBindMem"><strong>id = pngBindMem(mem, size, mipmap, trans, info, wrapst, minfilter, magfilter)</strong></a>
 </pre>
 <blockquote>
 <table border="1">
@@ -345,7 +366,7 @@ handle) cases.</li>
 <li>Other mipmap generating algorithms could be implemented
 (wavelet stuff?). Source donations are welcome.</li>
 <li>Saving the frame buffer to a PNG file.</li>
-<li>Support for GL_INTENSITY, GL_LUMINANCE_ALPHA and others.</li>
+<li>Support for GL_INTENSITY and others.</li>
 </ul>
 <h3>History</h3>
 <table border="0">
@@ -418,6 +439,11 @@ producing warnings and errors in MSDEV.</td>
 <td valign="top" nowrap>1.45 (10/07/00)</td>
 <td valign="top">Fixed bug where the standard orientation flag was
 being ignored in pngLoadRawF (thanks to Mark B. Allan!).</td>
+</tr>
+<tr>
+<td valign="top" nowrap>1.46 (02/06/14)</td>
+<td valign="top">Added memory reading functions and
+PNG_LUMINANCE_ALPHA support. Fixed CVE-2010-1519.</td>
 </tr>
 </table>
 <p>Get the latest version from <a href=

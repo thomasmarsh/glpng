@@ -4,7 +4,7 @@ project(glpng C)
 include(GNUInstallDirs)
 
 set(SONAME_VERSION 1)
-set(MINOR_VERSION 45)
+set(MINOR_VERSION 46)
 set(VERSION ${SONAME_VERSION}.${MINOR_VERSION})
 
 set(BUILD_STATIC_LIBS ON CACHE BOOL "Set to ON to build static libraries")
