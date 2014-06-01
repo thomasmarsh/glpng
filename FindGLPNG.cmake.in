@@ -1,0 +1,21 @@
+# - Try to find glpng
+# Once done this will define
+#
+#  GLPNG_FOUND - system has glpng
+#  GLPNG_INCLUDE_DIRS - the glpng include directories
+#  GLPNG_LIBRARIES - link these to use glpng
+
+find_path(GLPNG_INCLUDE_DIR GL/glpng.h)
+find_library(GLPNG_LIBRARY NAMES glpng)
+
+set(GLPNG_INCLUDE_DIRS ${GLPNG_INCLUDE_DIR})
+set(GLPNG_LIBRARIES ${GLPNG_LIBRARY})
+
+set(GLPNG_VERSION @VERSION@)
+set(GLPNG_VERSION_MAJOR @SONAME_VERSION@)
+set(GLPNG_VERSION_MINOR @MINOR_VERSION@)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GLPNG DEFAULT_MSG GLPNG_LIBRARY GLPNG_INCLUDE_DIR)
+
+mark_as_advanced(GLPNG_INCLUDE_DIR GLPNG_LIBRARY)
