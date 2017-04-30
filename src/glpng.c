@@ -28,8 +28,12 @@
 #define GL_GLEXT_PROTOTYPES
 
 #include <GL/glpng.h>
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
 #include <GL/glext.h>
+#endif /* __APPLE__ */
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
